@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+
+# Env
+.env
+
+# Pipeline outputs
+colmap_output/
+output/
+
+# Large point clouds and splats
+*.ply
+*.splat
+
+# Node / web viewer
+node_modules/
+dist/
+
+# Data — keep the folder README but ignore everything else
+data/*
+!data/README.md
