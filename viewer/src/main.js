@@ -9,11 +9,11 @@ if (!scene) {
   throw new Error('no scene param; redirecting to index');
 }
 
-// HUD: scene label
+// HUD: scene label + title
 document.getElementById('scene-name').textContent = scene;
 document.title = `3dgs viewer: ${scene}`;
 
-// Progress bar wiring
+// Loading bar wiring
 const loadingEl = document.getElementById('loading');
 const loadingFill = document.getElementById('loading-fill');
 const loadingText = document.getElementById('loading-text');
@@ -23,40 +23,50 @@ function setProgress(percent) {
   loadingFill.style.width = `${clamped}%`;
   loadingText.textContent = `loading... ${clamped.toFixed(0)}%`;
 }
-
-function hideLoading() {
-  loadingEl.classList.add('hidden');
-}
-
-function failLoading(message) {
+function hideLoading() { loadingEl.classList.add('hidden'); }
+function failLoading(msg) {
   loadingFill.style.background = '#5a1f2a';
-  loadingText.textContent = message;
+  loadingText.textContent = msg;
 }
 
-// --- viewer setup ---
 const rootElement = document.getElementById('canvas-root');
 
+// Notes on the Viewer options:
+//   cameraUp [0,-1,0]:       COLMAP world has +Y pointing down (gravity), so
+//                            up is -Y. Without this the scene renders upside
+//                            down relative to the built-in orbit controls.
+//   gpuAcceleratedSort false: with this true, the sort worker never gets the
+//                            splat centers (they're expected on the GPU) and
+//                            uploadedSplatCount stays 0, leaving drawRange at
+//                            0 and the canvas black. CPU sort is fine for
+//                            scenes in the hundreds-of-thousands range.
+//   sceneRevealMode Instant: default Default mode fades splats in based on
+//                            firstRenderTime, which only advances once at
+//                            least one splat has been rendered. Instant skips
+//                            that gate.
 const viewer = new GaussianSplats3D.Viewer({
   rootElement,
   useBuiltInControls: true,
   selfDrivenMode: true,
   sharedMemoryForWorkers: false,
-  gpuAcceleratedSort: true,
+  gpuAcceleratedSort: false,
   ignoreDevicePixelRatio: false,
+  cameraUp: [0, -1, 0],
+  initialCameraPosition: [2.608, 0.328, -1.376],
+  initialCameraLookAt: [-0.188, -1.08, 2.523],
+  sceneRevealMode: GaussianSplats3D.SceneRevealMode.Instant,
 });
 
-// Force the WebGL clear color to our dark theme. The Viewer creates its own
-// renderer; we just override the clear color after construction.
-function applyClearColor() {
-  const renderer = viewer.renderer;
-  if (renderer && typeof renderer.setClearColor === 'function') {
-    renderer.setClearColor(new THREE.Color(0x0a0a0f), 1);
-  }
-}
-applyClearColor();
+// Expose for devtools poking.
+window.viewer = viewer;
+window.THREE = THREE;
 
-// --- load the splat scene ---
-const splatUrl = `${encodeURIComponent(scene)}.ksplat`;
+// Override the WebGL clear color to match the dark theme.
+if (viewer.renderer && typeof viewer.renderer.setClearColor === 'function') {
+  viewer.renderer.setClearColor(new THREE.Color(0x0a0a0f), 1);
+}
+
+const splatUrl = `/${encodeURIComponent(scene)}.ksplat`;
 
 viewer
   .addSplatScene(splatUrl, {
@@ -69,15 +79,19 @@ viewer
   .then(() => {
     setProgress(100);
     hideLoading();
+    // Force the camera matrix world to flush before start(). The first sort
+    // reads camera.matrixWorld for frustum culling; if it's stale, every
+    // splat lands outside the frustum.
+    viewer.camera.updateMatrixWorld(true);
+    viewer.splatMesh.updateMatrixWorld(true);
     viewer.start();
-    applyClearColor();
   })
   .catch((err) => {
     console.error('failed to load splat scene', err);
     failLoading(`failed to load ${splatUrl} (see console)`);
   });
 
-// --- FPS counter, averaged over a 500ms window ---
+// Top-right FPS HUD, averaged over a 500 ms window.
 const fpsValue = document.getElementById('fps-value');
 let frameCount = 0;
 let windowStart = performance.now();

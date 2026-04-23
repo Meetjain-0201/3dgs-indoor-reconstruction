@@ -129,29 +129,69 @@ def build_scene(xyz, rgb, poses, frame_size_override):
     return pcd, frames, frame_size
 
 
-def render_and_capture(pcd, frames, screenshot_path, interactive):
+def render_headless_offscreen(pcd, frames, screenshot_path, width=1280, height=720):
+    """
+    Use Filament-based OffscreenRenderer for screenshot-only mode. No GLFW,
+    no Wayland/X11 window context required.
+    """
+    import open3d.visualization.rendering as rendering
+    renderer = rendering.OffscreenRenderer(width, height)
+    scene = renderer.scene
+    scene.set_background([0.04, 0.04, 0.06, 1.0])
+
+    pcd_mat = rendering.MaterialRecord()
+    pcd_mat.shader = "defaultUnlit"
+    pcd_mat.point_size = 2.5
+    scene.add_geometry("pcd", pcd, pcd_mat)
+
+    frame_mat = rendering.MaterialRecord()
+    frame_mat.shader = "defaultLit"
+    for i, frame in enumerate(frames):
+        scene.add_geometry(f"cam_{i}", frame, frame_mat)
+
+    bounds = pcd.get_axis_aligned_bounding_box()
+    center = np.asarray(bounds.get_center(), dtype=np.float32)
+    extent = np.asarray(bounds.get_extent(), dtype=np.float32)
+    radius = float(np.linalg.norm(extent) * 0.5)
+    # COLMAP world convention: Y roughly points down (gravity +Y), so up = -Y.
+    # Place the camera back and slightly above the center along the Z axis.
+    eye = center + np.array([0.0, -radius * 0.6, radius * 1.8], dtype=np.float32)
+    up = np.array([0.0, -1.0, 0.0], dtype=np.float32)
+    renderer.setup_camera(60.0, center, eye, up)
+
+    img = renderer.render_to_image()
+    o3d.io.write_image(str(screenshot_path), img)
+
+
+def render_interactive_with_screenshot(pcd, frames, screenshot_path):
     vis = o3d.visualization.Visualizer()
     vis.create_window(
         window_name=f"sparse preview ({screenshot_path.name})",
         width=1280,
         height=720,
-        visible=interactive,
+        visible=True,
     )
     vis.add_geometry(pcd)
     for frame in frames:
         vis.add_geometry(frame)
 
     opt = vis.get_render_option()
-    opt.background_color = np.asarray([0.05, 0.05, 0.05])
-    opt.point_size = 2.0
+    if opt is not None:
+        opt.background_color = np.asarray([0.05, 0.05, 0.05])
+        opt.point_size = 2.0
 
     vis.poll_events()
     vis.update_renderer()
     vis.capture_screen_image(str(screenshot_path), do_render=True)
-
-    if interactive:
-        vis.run()
+    vis.run()
     vis.destroy_window()
+
+
+def render_and_capture(pcd, frames, screenshot_path, interactive):
+    if interactive:
+        render_interactive_with_screenshot(pcd, frames, screenshot_path)
+    else:
+        render_headless_offscreen(pcd, frames, screenshot_path)
 
 
 def main():
