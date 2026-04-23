@@ -89,9 +89,11 @@ When the training script is invoked with `--eval` (the default in `train_scene.s
 
 ## Results
 
-| Scene | PSNR (dB) | SSIM | LPIPS |
-|-------|-----------|------|-------|
-|       |           |      |       |
+| Scene | PSNR (dB) | SSIM   | LPIPS  |
+|-------|-----------|--------|--------|
+| barn  | 28.11     | 0.879  | 0.120  |
+
+barn was trained for 30000 iterations at `--resolution 2` (640 px long edge) from 300 frames, evaluated on 38 held-out test views.
 
 ## Known failure cases
 
