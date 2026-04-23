@@ -1,6 +1,16 @@
-# 3DGS Indoor Reconstruction
+# 3DGS Outdoor Reconstruction
 
-End-to-end 3D Gaussian Splatting pipeline that turns a handheld webcam walkthrough of a room into a photorealistic scene you can fly through in the browser.
+End-to-end 3D Gaussian Splatting pipeline that turns a handheld webcam walkthrough of a scene into a photorealistic reconstruction you can fly through in the browser.
+
+## Example: the barn scene
+
+Four representative frames from the 300-frame handheld walkthrough (the raw input):
+
+![Input frames from the barn capture](docs/images/frames_strip.png)
+
+The same scene after 30,000 iterations of 3DGS training, rendered live in the Three.js viewer as a 15 MB ksplat:
+
+![Trained 3DGS scene rendered in the browser viewer](docs/images/viewer_screenshot.png)
 
 ## Pipeline
 
@@ -10,6 +20,8 @@ End-to-end 3D Gaussian Splatting pipeline that turns a handheld webcam walkthrou
 |           |   | Extraction|   |    SfM    |   | Training  |   |  Export   |   |  Viewer   |
 +-----------+   +-----------+   +-----------+   +-----------+   +-----------+   +-----------+
 ```
+
+The pipeline itself is scene-agnostic and works on indoor rooms too. We focused our evaluation on an outdoor capture (barn) because of the capture constraints of a laptop webcam.
 
 ## Hardware and environment
 
@@ -49,27 +61,27 @@ Start from a short handheld walkthrough video. Aim for steady motion, good light
 
 1. Extract sharp frames from the video, dropping blurry ones via a Laplacian variance threshold:
    ```
-   python scripts/extract_frames.py --input path/to/bedroom.mp4 --output data/bedroom/images --fps 2
+   python scripts/extract_frames.py --input path/to/barn.mp4 --output data/barn/images --fps 2
    ```
 
 2. Scaffold the COLMAP-expected folder layout and record the scene in the manifest:
    ```
-   python scripts/organize_scenes.py --scenes bedroom
+   python scripts/organize_scenes.py --scenes barn
    ```
 
 3. Run Structure-from-Motion (use `--sequential` for video-derived frames since they are temporally ordered):
    ```
-   python scripts/run_colmap.py --scene bedroom --sequential
+   python scripts/run_colmap.py --scene barn --sequential
    ```
 
 4. Train 3D Gaussian Splatting on the posed images:
    ```
-   bash scripts/train_scene.sh bedroom 30000
+   bash scripts/train_scene.sh barn 30000
    ```
 
 5. Export the trained point cloud to `.ksplat`, refresh the scenes index, and rebuild the viewer bundle:
    ```
-   bash scripts/export_for_viewer.sh bedroom
+   bash scripts/export_for_viewer.sh barn
    ```
 
 6. Serve the viewer and open it in a browser:
@@ -81,7 +93,7 @@ Start from a short handheld walkthrough video. Aim for steady motion, good light
 
 ## Monitoring
 
-Training runs for tens of minutes to several hours depending on iterations and scene size. `scripts/monitor_training.py` tails `output/<scene>/train.log` in real time by polling the file directly (no subprocess `tail`) and renders a live `rich` table of iteration, loss, PSNR, and elapsed time. It warns when the loss has not decreased in the last 3000 iterations and, on Ctrl+C, prints the best PSNR it observed along with the iteration where it was reached. Run it in a second terminal with `python scripts/monitor_training.py --scene bedroom --refresh_rate 5`.
+Training runs for tens of minutes to several hours depending on iterations and scene size. `scripts/monitor_training.py` tails `output/<scene>/train.log` in real time by polling the file directly (no subprocess `tail`) and renders a live `rich` table of iteration, loss, PSNR, and elapsed time. It warns when the loss has not decreased in the last 3000 iterations and, on Ctrl+C, prints the best PSNR it observed along with the iteration where it was reached. Run it in a second terminal with `python scripts/monitor_training.py --scene barn --refresh_rate 5`.
 
 ## Evaluation
 
@@ -97,7 +109,11 @@ barn was trained for 30000 iterations at `--resolution 2` (640 px long edge) fro
 
 ## Known failure cases
 
-The pipeline struggles where COLMAP and 3DGS traditionally struggle. Textureless surfaces such as painted walls and whiteboards give the feature matcher nothing to lock onto, so those regions come back sparse or drift between views. Specular reflections from monitors, windows, and glossy furniture confuse SfM triangulation and the appearance model at the same time, which shows up as floaters and view-dependent shimmer. Motion blur from a rushed sweep lowers the count of registered cameras, which starves the splat budget in exactly the parts of the room that needed the most coverage. Sparse coverage of corners, the "I forgot to walk around that end of the room" failure, produces stretched low-density Gaussians that look acceptable straight on and fall apart the moment the viewer orbits past them.
+The pipeline struggles where COLMAP and 3DGS traditionally struggle. Textureless surfaces such as painted siding, blank sky regions, and whiteboards give the feature matcher nothing to lock onto, so those regions come back sparse or drift between views. Specular reflections from windows, metal fittings, and glossy floors confuse SfM triangulation and the appearance model at the same time, which shows up as floaters and view-dependent shimmer. Motion blur from a rushed sweep lowers the count of registered cameras, which starves the splat budget in exactly the parts of the scene that needed the most coverage. Sparse coverage of the far side of the scene, the "I forgot to walk around that end" failure, produces stretched low-density Gaussians that look acceptable straight on and fall apart the moment the viewer orbits past them.
+
+## Report and presentation
+
+The CS5330 final report (IEEE 2-column format) lives at `docs/CS5330_final_report.tex` with the rendered figures in `docs/images/`. The final presentation deck lives at `docs/CS5330_final_presentation.pptx`.
 
 ## References
 
