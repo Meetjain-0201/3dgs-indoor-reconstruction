@@ -2,3 +2,4 @@ ffmpeg-python
 opencv-python
 numpy
 open3d
+rich
