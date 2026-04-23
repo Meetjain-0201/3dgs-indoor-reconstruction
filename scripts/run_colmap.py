@@ -84,6 +84,17 @@ def model_converter_cmd(model_path):
     ]
 
 
+def image_undistorter_cmd(image_path, sparse_model_path, dense_path):
+    return [
+        "colmap", "image_undistorter",
+        "--image_path", str(image_path),
+        "--input_path", str(sparse_model_path),
+        "--output_path", str(dense_path),
+        "--output_type", "COLMAP",
+        "--max_image_size", "2000",
+    ]
+
+
 def run_step(cmd, log_path, step_name):
     pretty = shlex.join(cmd)
     banner = f"\n========== {step_name} ==========\ncommand: {pretty}\n"
@@ -225,6 +236,23 @@ def main():
         sys.exit(1)
 
     run_step(model_converter_cmd(model_dir), log_path, "model_converter")
+
+    # 3DGS only accepts PINHOLE / SIMPLE_PINHOLE. We use OPENCV in feature
+    # extraction (better distortion modeling during BA), so undistort the
+    # images and resulting model here. Output goes to <scene>/dense/ and
+    # has sparse wrapped in 0/ the way 3DGS expects.
+    dense_dir = scene_dir / "dense"
+    if dense_dir.exists():
+        import shutil
+        shutil.rmtree(dense_dir)
+    run_step(image_undistorter_cmd(images_dir, model_dir, dense_dir), log_path, "image_undistorter")
+
+    dense_sparse = dense_dir / "sparse"
+    if dense_sparse.is_dir() and not (dense_sparse / "0").exists():
+        tmp = dense_dir / "sparse_flat"
+        dense_sparse.rename(tmp)
+        dense_sparse.mkdir()
+        tmp.rename(dense_sparse / "0")
 
     cameras_txt = model_dir / "cameras.txt"
     points_txt = model_dir / "points3D.txt"

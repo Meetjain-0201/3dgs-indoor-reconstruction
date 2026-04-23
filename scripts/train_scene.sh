@@ -14,17 +14,26 @@ if [[ -z "$SCENE" ]]; then
     exit 1
 fi
 
-SCENE_DIR="data/$SCENE"
-IMAGES_DIR="$SCENE_DIR/images"
+SCENE_ROOT="data/$SCENE"
 OUTPUT_DIR="output/$SCENE"
 
-if [[ ! -d "$SCENE_DIR" ]]; then
-    echo "ERROR: scene directory $SCENE_DIR does not exist." >&2
+# 3DGS only accepts PINHOLE / SIMPLE_PINHOLE cameras. If run_colmap.py ran the
+# undistortion step, prefer the dense/ workspace (PINHOLE, already rectified).
+# Otherwise fall back to the raw scene dir.
+if [[ -d "$SCENE_ROOT/dense/images" ]] && [[ -d "$SCENE_ROOT/dense/sparse/0" ]]; then
+    SCENE_DIR="$SCENE_ROOT/dense"
+else
+    SCENE_DIR="$SCENE_ROOT"
+fi
+IMAGES_DIR="$SCENE_DIR/images"
+
+if [[ ! -d "$SCENE_ROOT" ]]; then
+    echo "ERROR: scene directory $SCENE_ROOT does not exist." >&2
     exit 1
 fi
 
 if [[ ! -d "$IMAGES_DIR" ]] || [[ -z "$(ls -A "$IMAGES_DIR" 2>/dev/null)" ]]; then
-    echo "ERROR: $IMAGES_DIR is missing or empty. Extract frames first." >&2
+    echo "ERROR: $IMAGES_DIR is missing or empty. Extract frames (and undistort) first." >&2
     exit 1
 fi
 

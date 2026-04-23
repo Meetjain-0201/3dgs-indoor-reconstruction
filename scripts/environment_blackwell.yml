@@ -1,0 +1,17 @@
+name: gaussian_splatting
+channels:
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - cuda-toolkit=12.8
+  - plyfile
+  - tqdm
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/cu128
+      - torch
+      - torchvision
+      - opencv-python
+      - joblib
