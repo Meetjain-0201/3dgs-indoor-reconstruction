@@ -17,6 +17,9 @@ output/
 node_modules/
 dist/
 
+# Third-party repos
+gaussian-splatting/
+
 # Data — keep the folder README but ignore everything else
 data/*
 !data/README.md
