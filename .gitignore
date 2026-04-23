@@ -12,6 +12,7 @@ output/
 # Large point clouds and splats
 *.ply
 *.splat
+*.ksplat
 
 # Node / web viewer
 node_modules/
@@ -19,6 +20,7 @@ dist/
 
 # Third-party repos
 gaussian-splatting/
+viewer/ksplat-converter/
 
 # Data — keep the folder README but ignore everything else
 data/*

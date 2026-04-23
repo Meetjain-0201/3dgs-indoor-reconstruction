@@ -86,18 +86,46 @@
     <main id="scene-list"></main>
     <footer>cs5330 final project</footer>
     <script type="module">
-      const scenes = ['bedroom', 'workspace'];
       const list = document.getElementById('scene-list');
-      for (const name of scenes) {
-        const card = document.createElement('a');
-        card.className = 'scene-card';
-        card.href = `viewer.html?scene=${encodeURIComponent(name)}`;
-        card.innerHTML = `
-          <div class="label">scene</div>
-          <div class="name">${name}</div>
-        `;
-        list.appendChild(card);
+
+      function renderCards(scenes) {
+        list.innerHTML = '';
+        if (!scenes.length) {
+          const empty = document.createElement('div');
+          empty.style.color = '#6c6c7a';
+          empty.style.fontSize = '0.8rem';
+          empty.textContent =
+            'no scenes yet. run scripts/export_for_viewer.sh <scene> to add one.';
+          list.appendChild(empty);
+          return;
+        }
+        for (const name of scenes) {
+          const card = document.createElement('a');
+          card.className = 'scene-card';
+          card.href = `viewer.html?scene=${encodeURIComponent(name)}`;
+          card.innerHTML = `
+            <div class="label">scene</div>
+            <div class="name">${name}</div>
+          `;
+          list.appendChild(card);
+        }
       }
+
+      fetch('/scenes.json')
+        .then((r) => {
+          if (!r.ok) throw new Error(`scenes.json: ${r.status}`);
+          return r.json();
+        })
+        .then(renderCards)
+        .catch((err) => {
+          console.error(err);
+          list.innerHTML = '';
+          const msg = document.createElement('div');
+          msg.style.color = '#b55a5a';
+          msg.style.fontSize = '0.8rem';
+          msg.textContent = `failed to load scenes.json (${err.message})`;
+          list.appendChild(msg);
+        });
     </script>
   </body>
 </html>
